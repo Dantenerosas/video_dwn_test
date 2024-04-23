@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Video Downloading</title>
+</head>
+<style>
+    .custom-btn {
+      width: 145px;
+      height: 60px;
+      color: #fff;
+      border-radius: 5px;
+      padding: 10px 25px;
+      font-family: 'Lato', sans-serif;
+      font-weight: 500;
+      background: transparent;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      display: inline-block;
+       box-shadow:inset 2px 2px 2px 0px rgba(255,255,255,.5),
+       7px 7px 20px 0px rgba(0,0,0,.1),
+       4px 4px 5px 0px rgba(0,0,0,.1);
+      outline: none;
+    }
+    .btn-1 {
+      background: rgb(6,14,131);
+      background: linear-gradient(0deg, rgba(6,14,131,1) 0%, rgba(12,25,180,1) 100%);
+      border: none;
+    }
+    .btn-1:hover {
+       background: rgb(0,3,255);
+    background: linear-gradient(0deg, rgba(0,3,255,1) 0%, rgba(2,126,251,1) 100%);
+    }
+    input {
+	width: 300px;
+	font-size: 13px;
+	padding: 6px 0 4px 10px;
+	border: 1px solid #cecece;
+	background: #F6F6f6;
+	border-radius: 8px;
+    }
+    .col {
+    background: #f0f0f0; /* Цвет фона */
+    width: 1000px; /* Ширина блока */
+    padding: 10px; /* Поля */
+    font-size: 1.5em; /* Размер шрифта */
+    word-wrap: break-word; /* Перенос слов */
+   }
+   @keyframes spinner-border {
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+
+  .submit-spinner {
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    vertical-align: -0.125em;
+    border: 0.2em solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    -webkit-animation: .75s linear infinite spinner-border;
+    animation: .75s linear infinite spinner-border;
+  }
+
+  .submit-spinner_hide {
+    display: none;
+  }
+</style>
+<body>
+    <form method="post" action="/submit" id="download">
+         <input type="text" name="link" id="link" placeholder="link">
+         <input type="text" name="video_format" placeholder="video_format">
+         <input type="text" name="audio_format" placeholder="audio_format">
+         <input type="text" name="resolution" placeholder="resolution">
+         <input type="text" name="merge_output_format" placeholder="merge_output_format">
+         <button type="submit" class="custom-btn btn-1"><span class="submit-spinner submit-spinner_hide"></span> Download</button>
+    </form>
+    <div id="linksList" class="col">
+        <p> Ссылка для скачивания:</p>
+        <br>
+        <a id="result" href="" download></a>
+        <div class="loader">
+            <div class="loader_inner"></div>
+        </div>
+    </div>
+</body>
+<script>
+    function createLink(url) {
+        var link = document.createElement('a');
+        link.className = "addedLink";
+        link.setAttribute('download', '');
+        link.innerHTML = url;
+        link.href = url;
+        return link;
+    }
+
+    function createLinksList(urls) {
+
+        var mydiv = document.getElementById("linksList");
+        urls.forEach((element) => {
+            mydiv.appendChild(createLink(element));
+            var br = document.createElement('br');
+            br.className = "addedBr";
+            mydiv.appendChild(br);
+            }
+        );
+
+    };
+    function sendReq() {
+        document.forms.download.querySelector('[type="submit"]').disabled = true;
+        document.forms.download.querySelector('.submit-spinner').classList.remove('submit-spinner_hide');
+        const link = document.getElementById("link").value
+        const xhr2 = new XMLHttpRequest();
+        xhr2.open('POST', 'http://'+document.location.host+'/check/');
+        xhr2.responseType = 'json';
+        xhr2.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+
+        xhr2.onload = function() {
+            // TODO: добавить обработку исключений и всех возможных кодов в ответе
+            if (xhr2.status !== 200) {
+                if ('response' in xhr2 && xhr2.response !== null) {
+                    console.log(xhr2.response)
+                    result.innerHTML = xhr2.response.result;
+                    result.href = xhr2.response.result;
+                };
+                if (xhr2.status !== 510) {
+
+                    setTimeout(sendReq, 5000);
+                } else {
+                    document.forms.download.querySelector('[type="submit"]').disabled = false;
+                    document.forms.download.querySelector('.submit-spinner').classList.add('submit-spinner_hide');
+                  };
+            } else if (xhr2.status === 200) {
+                console.log(xhr2.response)
+                if (document.getElementById("result").texContent !== '') {
+                    document.getElementById("result").textContent = ''
+                };
+                createLinksList(xhr2.response["result"]);
+                document.forms.download.querySelector('[type="submit"]').disabled = false;
+                document.forms.download.querySelector('.submit-spinner').classList.add('submit-spinner_hide');
+              };
+        };
+        var params = {
+            "link":link,
+        };
+        setTimeout(function() { xhr2.send(JSON.stringify(params));}, 1000)
+    }
+
+
+    function sendForm() {
+    const links = document.querySelectorAll('.addedLink');
+    links.forEach(link => {
+        link.remove();
+        }
+    );
+    const brs = document.querySelectorAll('.addedBr');
+    brs.forEach(br => {
+        br.remove();
+        }
+    );
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', document.forms.download.action);
+    xhr.responseType = 'json';
+
+    xhr.onload = () => {
+      document.forms.download.querySelector('[type="submit"]').disabled = false;
+      document.forms.download.querySelector('.submit-spinner').classList.add('submit-spinner_hide');
+      console.log(xhr.status);
+      if (xhr.status !== 200 && xhr.status !== 201) {
+        return;
+      };
+
+      const response = xhr.response;
+
+
+      if (xhr.status === 201) {
+        sendReq()
+      } else if (xhr.status === 202) {
+          result.innerHTML = xhr.response.result;
+          result.href = xhr.response.result;
+      } else {
+          console.log(response["result"]);
+          createLinksList(response["result"]);
+      };
+    }
+    xhr.onerror = () => {
+      document.forms.download.querySelector('[type="submit"]').disabled = false;
+      document.forms.download.querySelector('.submit-spinner').classList.add('submit-spinner_hide');
+    };
+    document.forms.download.querySelector('[type="submit"]').disabled = true;
+    document.forms.download.querySelector('.submit-spinner').classList.remove('submit-spinner_hide');
+    xhr.send(new FormData(document.forms.download));
+
+
+
+  }
+  // при отправке формы
+  document.forms.download.addEventListener('submit', (e) => {
+    e.preventDefault();
+    sendForm();
+
+
+  });
+</script>
+</html>
+
+
